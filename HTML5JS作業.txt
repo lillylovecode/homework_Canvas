@@ -1,0 +1,21 @@
+HTML5 JS Api作業
+7/9交作業(Email .7z壓縮檔)
+題目: 銷售業績統計圖表
+
+1.需有12位同仁的業績資料
+2.Canvas (或 SVG)畫布寬高為1000px, 1000px 
+3.呈現三種圖(可由下拉選單切換):
+      a:折線圖
+      b:長條圖
+      c:餅圖
+4.indexedDB儲存資料, 讀取全部畫出結果
+const personsData = [
+    {name: "王大衛", salesdata: 600000},
+    {name: "張瑪莉", salesdata: 560000},
+    {name: "陳小明", salesdata: 280000}
+];
+
+
+
+
+

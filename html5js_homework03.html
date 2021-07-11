@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>HTML 5 銷售業績統計圖表</title>
+
+    <script>
+    //確認瀏覽器支援
+    if(!indexedDB){
+    alert("抱歉,您的瀏覽器不支援indexedDB")
+    }else{
+        alert("恭喜,您的瀏覽器支援indexedDB");
+    }
+    //員工業績資料
+    const personsData = [
+    {name:"王大衛", x:100,sales:300},
+    {name:"李瑪莉", x:150,sales:150},
+    {name:"陳經理", x:200,sales:400},
+    {name:"高小芬", x:250,sales:250},
+    {name:"陳芊芊", x:300,sales:400},
+    {name:"韓小碩", x:350,sales:300},
+    {name:"橋秀常", x:400,sales:200},
+    {name:"呂小寒", x:450,sales:300},
+    {name:"周大方", x:500,sales:350},
+    {name:"於博士", x:550,sales:250},
+    {name:"胡曉倩", x:600,sales:300},
+    {name:"孔小劉", x:650,sales:400},
+    ];
+
+    var db;
+    var request = indexedDB.open("myIdxDB",1);
+    request.onerror = function(event){
+        alert("開啟資料庫發生錯誤");
+    }
+
+    request.onsuccess = function(event){ 
+    db = request.result; //request成功回傳資料庫物件，指定給db
+    alert("資料庫開啟成功" + db);
+    }
+
+    //版本號檢查:看是否需要更新，當版本號更新時執行.onupgradeneeded
+    request.onupgradeneeded = function(event){
+        var mydb = event.target.result; //獲取資料庫，將資料倒入資料庫
+        var objectStore = mydb.createObjectStore("salesData",{key:"id",autoIncrement:true});
+
+        for(var i in personsData){
+            objectStore.add(personsData[i]);
+        }
+    }
+
+    //讀取資料，先讀完資料再畫圖
+    var salesDataCords2 = [];
+    var salesName = [];
+    var myData = [];
+    function readAllData(chart){
+        salesDataCords2 = [];
+        var objectStore = db.transaction(["salesData"]).objectStore(["salesData"]);
+        objectStore.openCursor().onsuccess = function(event){ 
+            var cursorRusult = event.target.result; 
+            if(cursorRusult){
+                salesDataCords2.push([cursorRusult.value.x,cursorRusult.value.sales]);
+                myData.push(cursorRusult.value.sales);
+                salesName.push(cursorRusult.value.name);
+                cursorRusult.continue();
+            }else{
+                //alert("資料讀完了");
+                
+                if(chart =="line"){
+                    clearCanvas();
+                    drawLine();
+                }else if(chart =="circle"){
+                    clearCanvas();
+                    drawCircle();
+                }else if(chart =="square"){
+                    clearCanvas();
+                    drawSquare();
+                }else{
+                    alert("請選擇圖表");
+                }
+            }
+        }
+    }
+
+    //折線圖
+    function drawLine(){
+        var canvas = document.getElementById("mycanvas");
+        if(canvas.getContext){
+            var ctx = canvas.getContext("2d");
+            // 畫座標軸
+            ctx.beginPath(); //開始新線段
+            ctx.moveTo(100,100); //移動下筆座標
+            ctx.lineTo(100,500); //下筆至座標
+            ctx.lineTo(800,500);
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth=3; //線條粗度
+            ctx.stroke(); //執行繪圖
+            //標註文字
+            ctx.font = "20pt 微軟正黑體";
+            ctx.fillStyle = "#000";
+            ctx.fillText ("業績(百萬)",20,80);
+            ctx.fillText ("同仁",805,525);
+            //折線圖
+            ctx.beginPath();
+            for(var i=0;i<salesDataCords2.length;i++){
+                if(i==0){
+                    ctx.moveTo(salesDataCords2[0][0],550-salesDataCords2[0][1]);
+                }else{
+                    ctx.lineTo(salesDataCords2[i][0],550-salesDataCords2[i][1]);
+                }
+                ctx.strokeStyle = "#DC143C";
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            }
+            //虛線
+            ctx.beginPath();
+            for(var i=1;i<salesDataCords2.length;i++){
+                ctx.moveTo(salesDataCords2[i][0],550-salesDataCords2[i][1]);
+                ctx.lineTo(salesDataCords2[i][0],500);
+                ctx.strokeStyle="#ccc";
+                ctx.setLineDash([25,5]);
+                ctx.lineWidth=2;
+                ctx.stroke();
+                ctx.setLineDash([]); //取消虛線
+            }
+            //虛線Text
+            ctx.font="10pt 微軟正黑體";
+            ctx.fillStyle = "#000";
+            for(var i = 0;i<salesDataCords2.length;i++){
+                ctx.fillText(salesName[i],salesDataCords2[i][0],530);
+            }
+
+            //橫線
+            ctx.beginPath();
+            for(var i = 1;i<salesDataCords2.length;i++){
+                ctx.moveTo(650,salesDataCords2[i][1]);
+                ctx.lineTo(100,salesDataCords2[i][1]);
+                ctx.strokeStyle="#808080";
+                ctx.lineWidth=1; 
+                ctx.stroke();
+            }
+            //橫線Text
+            for(var i=0;i<salesDataCords2.length;i++){
+                ctx.fillText((550-salesDataCords2[i][1]),70,salesDataCords2[i][1]);
+            }
+
+        }
+    }
+
+    //圓餅圖
+    function drawCircle(){
+        var PI2 = Math.PI*2;
+        var total = 3600;
+
+        var myColor = [];
+        for(var i = 0; i < salesDataCords2.length; i++) {
+            myColor.push(`rgb(${255-10*i},255,${100+10*i})`);
+        }
+
+        var perent = [];//業績占比
+        for (var i = 0; i < salesDataCords2.length; i++) {
+            perent.push(Math.floor(salesDataCords2[i][1] /3600*100));
+        }
+
+        var myLabel = []; //標籤(姓名 0%)
+        for(var i = 0; i<salesName.length;i++){
+            myLabel.push(salesName[i]+" "+perent[i]+"%");
+        };
+
+        var sweeps = []; //各部分徑度
+        for (var i = 0; i < salesDataCords2.length; i++) {
+            sweeps.push(salesDataCords2[i][1] / 3600 * PI2);
+        }
+
+        var accumAngle = 0;//累積角度
+        for (var i = 0; i < sweeps.length; i++) {
+            drawWedge(accumAngle, accumAngle + sweeps[i], myColor[i], myData[i], myLabel[i]);
+            accumAngle += sweeps[i];
+        }               
+        
+
+    }
+
+    function drawWedge(startAngle, endAngle, fill, data, label){
+        var canvas = document.getElementById("mycanvas");
+        var cx = 500; //圓心x
+        var cy = 500; //圓心y
+        var radius = 300; //圓半徑
+
+        if(canvas.getContext){
+        var ctx = canvas.getContext("2d");
+        var cw = canvas.width;
+        var ch = canvas.height;
+    
+        ctx.lineWidth = 2;
+        ctx.font = '12pt 微軟正黑體';
+
+        ctx.beginPath();
+        ctx.moveTo(cx,cy);
+        ctx.arc(cx,cy,radius,startAngle,endAngle);
+        ctx.closePath();
+        ctx.strokeStyle ='white';
+        ctx.fillStyle = fill;
+        ctx.stroke();
+        ctx.fill();
+        
+        // draw the label in middle of sector
+        var midAngle = startAngle + (endAngle - startAngle) / 2;
+        var labelRadius = radius * 0.5;
+        var x = cx + (labelRadius) * Math.cos(midAngle);
+        var y = cy + (labelRadius) * Math.sin(midAngle);
+        ctx.fillStyle = 'red';
+        ctx.fillText(data, x, y);
+
+        //draw the label in middle of arc on exterior
+        var midAngle = startAngle + (endAngle - startAngle) / 2;
+        var labelRadius = radius*1.25;
+        var x = cx + (labelRadius) * Math.cos(midAngle);
+        var y = cy + (labelRadius) * Math.sin(midAngle);
+        ctx.fillStyle = 'black';
+        ctx.fillText(label,x,y);
+        }
+    }
+
+    //長條圖
+    function drawSquare(){
+        var canvas = document.getElementById("mycanvas");
+        if(canvas.getContext){
+            var ctx = canvas.getContext("2d");
+            // 畫座標軸
+            ctx.beginPath(); //開始新線段
+            ctx.moveTo(100,100); //移動下筆座標
+            ctx.lineTo(100,600); //下筆至座標
+            ctx.lineTo(900,600);
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth=3; //線條粗度
+            ctx.stroke(); //執行繪圖
+            //標註文字
+            ctx.font = "20pt 微軟正黑體";
+            ctx.fillStyle = "#000";
+            ctx.fillText ("業績(百萬)",25,90);
+            ctx.fillText ("同仁",905,625);
+            //長條圖
+            for(i=0;i<salesDataCords2.length;i++){
+                ctx.beginPath();
+                ctx.fillStyle = "#FFA500"; //內填滿
+                ctx.fillRect(105+i*65,599,50,(550-salesDataCords2[i][1])-550);
+                //x,y,w,h (內填滿，h為負才能往上長)
+                ctx.strokeStyle = "#ccc";
+                ctx.lineWidth = 4;
+            }
+            //Text
+            ctx.font="10pt 微軟正黑體";
+            ctx.fillStyle = "#000";
+            for(var i = 0;i<salesDataCords2.length;i++){
+                ctx.fillText(salesName[i],10+salesDataCords2[i][0]+i*15,630);
+                ctx.fillText(salesDataCords2[i][1],20+salesDataCords2[i][0]+i*15,550);
+            }
+            
+        }
+    }
+
+    //清除圖表
+    function clearCanvas(){
+        var canvas = document.getElementById("mycanvas");
+        if(canvas.getContext){
+            var ctx = canvas.getContext("2d");
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+        }
+    }
+
+    </script>
+</head>
+<body>
+    <main>
+        <header><h1 style="padding-left: 100px;">銷售業績統計圖表</h1></header>
+        <article>
+            <select id="chart" style="margin-left: 100px;" required onchange="readAllData(this.value)">
+                <option value="null">請選擇圖表</option>
+                <option value="line">折線圖</option>
+                <option value="circle">圓餅圖</option>
+                <option value="square">長條圖</option>
+            </select>
+        
+            <figure>
+                <canvas id="mycanvas" width="1000" height="1000" style="border: 3px solid #FF9900;"></canvas>
+            </figure>
+        </article>
+    </main>
+</body>
+</html>
